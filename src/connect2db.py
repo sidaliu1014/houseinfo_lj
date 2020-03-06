@@ -5,6 +5,9 @@ __author__ = 'starstar'
 
 import pyodbc
 from config import SQL_ROWS
+from enum import Enum
+action_type = Enum("action_type", ("insert", "update", "none"))
+
 
 class DbConnector(object):
 
@@ -16,7 +19,7 @@ class DbConnector(object):
         """database connect"""
         conn = pyodbc.connect(
             'Driver={MySQL ODBC 5.2 Unicode Driver};'
-            'Server=localhost;Database=wine;'
+            'Server=localhost;Database=house;'
             'uid=root;password=root',
             use_unicode=1,
             charset='utf8')
@@ -24,15 +27,17 @@ class DbConnector(object):
 
     def search(self, house):
 
-        flag, update_fields = True, dict()
+        action, update_fields = action_type.none, dict()
         string = "select * from house.houseinfo where title_url = '%s'limit 1" % (
             house.title_url)
         res = self.cursor.execute(string).fetchone()
         if res:
             update_fields = self.__check_cols(res, house)
             if update_fields:
-                flag = False
-        return flag, update_fields
+                action = action_type.update
+        else:
+             action = action_type.insert
+        return action, update_fields
 
     def __check_cols(self, searchresult, house):
 
@@ -46,14 +51,16 @@ class DbConnector(object):
         """insert into sql database
             params: house (object)
         """
-        string = u"insert into house.houseinfo values('{house.title_url}','{house.dealdt}'," \
+        if house.check():
+            string = u"insert into house.houseinfo values('{house.title_url}','{house.dealdt}'," \
                  u"'{house.totalprice}','{house.listingprice}','{house.cycle}','{house.name}'," \
                  u"'{house.size}','{house.type}','{house.story}','{house.builtyear}'," \
                  u"'{house.direction}','{house.decoration}','{house.unitprice}'," \
                  u"'{house.region}','{house.city}')".format(house=house)
 
-        print string
-        self.cursor.execute(string)
+            print string
+            self.cursor.execute(string)
+            self.cursor.commit()
 
     def update(self, house, update_fields):
         """update sql database if record is found in sql
